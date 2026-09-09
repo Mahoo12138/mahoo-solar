@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "workspaces": [
     "apps/*"
@@ -26,5 +27,6 @@
     "react-dom": "latest",
     "suncalc": "latest",
     "three": "latest"
-  }
+  },
+  "type": "module"
 }

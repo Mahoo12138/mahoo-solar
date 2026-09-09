@@ -1,8 +1,8 @@
 export const apartmentConfig = {
   city: '长沙',
   district: '岳麓区',
-  community: '保利恒伟时光印象',
-  building: 'C2栋',
+  community: '我的小区',
+  building: '我的公寓',
   floor: '11F',
   coordinateLabel: '112.865634, 28.233525',
   latitude: 28.233525,

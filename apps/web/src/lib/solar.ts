@@ -1,104 +1,63 @@
 import * as SunCalc from 'suncalc'
-import { apartmentConfig, mockPowerProfile, panelConfig } from '../data/mockData'
+import { apartmentConfig, panelConfig } from '../data/mockData.ts'
+import { defaultSite, getInstallation, sampleExposure, type SiteSettings, type Vec3 } from './buildings.ts'
+import { sampleWeather, scenarioWeather, shanghaiDate, type WeatherChoice, type WeatherData, type WeatherSample } from './weather.ts'
 
 export type SolarSnapshot = {
-  altitude: number
-  azimuth: number
-  incidenceAngle: number
-  geometricFactor: number
-  exposureRatio: number
-  solarPotential: number
-  solarInputPower: number
-  batteryLevel: number
-  outputPower: number
-  directSunlight: boolean
-  timeLabel: string
-  sunProgress: number
+  altitude: number; azimuth: number; incidenceAngle: number; geometricFactor: number
+  exposureRatio: number; solarPotential: number; solarInputPower: number
+  directSunlight: boolean; timeLabel: string; sunProgress: number; samples: boolean[]
+  weather: WeatherSample; weatherSource: 'forecast' | 'scenario' | 'fallback'
+  planeIrradiance: number; cellTemperature: number; temperatureFactor: number; clearSkyPower: number
 }
-
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value))
-const rad = (degrees: number) => (degrees * Math.PI) / 180
-
-const formatTime = (date: Date) =>
-  new Intl.DateTimeFormat('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: apartmentConfig.timezone,
-  }).format(date)
-
+const rad = (degrees: number) => degrees * Math.PI / 180
+export const formatTime = (date: Date) => new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: apartmentConfig.timezone }).format(date)
+export const minutesFromDate = (date: Date) => { const [h, m] = formatTime(date).split(':').map(Number); return h * 60 + m }
+export function buildDateAtMinutes(base: Date, minutes: number) {
+  return new Date(new Date(`${shanghaiDate(base)}T00:00:00+08:00`).getTime() + minutes * 60_000)
+}
 export function getSunWindow(date: Date) {
-  const times = SunCalc.getTimes(date, apartmentConfig.latitude, apartmentConfig.longitude)
+  const times = SunCalc.getTimes(new Date(`${shanghaiDate(date)}T12:00:00+08:00`), apartmentConfig.latitude, apartmentConfig.longitude)
   const sunriseDate = times.sunrise ?? buildDateAtMinutes(date, 360)
   const sunsetDate = times.sunset ?? buildDateAtMinutes(date, 1110)
-  const sunrise = sunriseDate.getTime()
-  const sunset = sunsetDate.getTime()
-  const progress = clamp((date.getTime() - sunrise) / Math.max(1, sunset - sunrise))
-  return { times: { ...times, sunrise: sunriseDate, sunset: sunsetDate }, progress }
+  return { times: { ...times, sunrise: sunriseDate, sunset: sunsetDate }, progress: clamp((date.getTime() - sunriseDate.getTime()) / Math.max(1, sunsetDate.getTime() - sunriseDate.getTime())) }
 }
-
-export function getSolarSnapshot(date: Date): SolarSnapshot {
-  const position = SunCalc.getPosition(date, apartmentConfig.latitude, apartmentConfig.longitude)
-  // suncalc 2.x returns degrees for both values (older versions returned radians).
-  const altitude = Math.max(-8, position.altitude)
-  const azimuth = (position.azimuth + 360) % 360
-  const sunAltitude = rad(altitude)
-  const sunAzimuth = rad(azimuth)
-
-  const sunVector = {
-    x: Math.cos(sunAltitude) * Math.sin(sunAzimuth),
-    y: Math.sin(sunAltitude),
-    z: Math.cos(sunAltitude) * Math.cos(sunAzimuth),
-  }
-  // For a vertical panel, tilt=90° means the normal is horizontal and points to azimuth.
-  const tilt = rad(panelConfig.tilt)
-  const panelNormal = {
-    x: Math.sin(tilt) * Math.sin(rad(panelConfig.azimuth)),
-    y: Math.cos(tilt),
-    z: Math.sin(tilt) * Math.cos(rad(panelConfig.azimuth)),
-  }
-  const dot = clamp(sunVector.x * panelNormal.x + sunVector.y * panelNormal.y + sunVector.z * panelNormal.z, -1, 1)
+export function sunDirection(altitude: number, azimuth: number): Vec3 {
+  return [Math.cos(rad(altitude)) * Math.sin(rad(azimuth)), Math.sin(rad(altitude)), Math.cos(rad(altitude)) * Math.cos(rad(azimuth))]
+}
+export function calculatePower(weather: WeatherSample, altitude: number, geometricFactor: number, exposure: number) {
+  // Isotropic sky diffuse + ground reflection on a vertical plane. The API's DNI/DHI
+  // already include clouds/precipitation: do not multiply by another cloud factor.
+  const planeIrradiance = altitude > 0 ? Math.max(0, weather.dni * geometricFactor * exposure + weather.dhi * 0.5 + weather.ghi * 0.2 * 0.5) : 0
+  const effective = planeIrradiance * panelConfig.glassTransmission
+  // Approximate ventilated module temperature; window installation needs calibration.
+  const cellTemperature = weather.temperature + effective / (25 + 6.84 * weather.windSpeed)
+  const temperatureFactor = clamp(1 - 0.004 * (cellTemperature - 25), 0, 1.2)
+  const solarInputPower = clamp(panelConfig.ratedPower * effective / 1000 * temperatureFactor * 0.92, 0, panelConfig.ratedPower)
+  return { planeIrradiance, cellTemperature, temperatureFactor, solarInputPower }
+}
+export function getSolarSnapshot(date: Date, site: SiteSettings = defaultSite, weatherData?: WeatherData, choice: WeatherChoice = 'auto'): SolarSnapshot {
+  const { altitude, azimuth } = SunCalc.getPosition(date, apartmentConfig.latitude, apartmentConfig.longitude)
+  const direction = sunDirection(altitude, azimuth)
+  const normal = sunDirection(0, getInstallation(site).azimuth)
+  const dot = clamp(direction.reduce((sum, v, i) => sum + v * normal[i], 0), -1, 1)
   const geometricFactor = clamp(dot)
-  const incidenceAngle = Math.acos(dot) * (180 / Math.PI)
-  const { progress } = getSunWindow(date)
-  const usableHours = Math.sin(Math.PI * progress)
-  const facadeAlignment = clamp(0.24 + Math.cos(rad(azimuth - panelConfig.azimuth)) * 0.52)
-  const exposureRatio = clamp(0.68 + usableHours * 0.18 - Math.max(0, altitude - 55) * 0.0025)
-  const solarPotential = clamp(geometricFactor * exposureRatio * panelConfig.glassTransmission)
-  const daylight = altitude > 0
-  const solarInputPower = daylight
-    ? Math.round(Math.min(panelConfig.ratedPower, panelConfig.ratedPower * (solarPotential * 0.94 + facadeAlignment * 0.05) + 9))
-    : 0
-  const outputPower = Math.round(6.55 + (solarInputPower > 30 ? 9.63 : 4.2))
-  const batteryLevel = Math.round(clamp(0.56 + progress * 0.2 + solarPotential * 0.13, 0.12, 0.96) * 100)
-
-  return {
-    altitude,
-    azimuth,
-    incidenceAngle,
-    geometricFactor,
-    exposureRatio,
-    solarPotential,
-    solarInputPower,
-    batteryLevel,
-    outputPower,
-    directSunlight: daylight && solarInputPower > 12,
-    timeLabel: formatTime(date),
-    sunProgress: progress,
-  }
+  const samples = sampleExposure(direction, site)
+  const exposureRatio = samples.filter(Boolean).length / samples.length
+  const forecast = choice === 'auto' ? sampleWeather(weatherData, date) : undefined
+  const weather = forecast ?? scenarioWeather(choice === 'auto' ? 'clear' : choice, date, altitude)
+  const power = calculatePower(weather, altitude, geometricFactor, exposureRatio)
+  const clearSkyPower = calculatePower(scenarioWeather('clear', date, altitude), altitude, geometricFactor, exposureRatio).solarInputPower
+  return { ...power, altitude, azimuth, incidenceAngle: Math.acos(dot) * 180 / Math.PI, geometricFactor, exposureRatio, samples, weather, weatherSource: forecast ? 'forecast' : choice === 'auto' ? 'fallback' : 'scenario', solarPotential: power.solarInputPower / panelConfig.ratedPower, directSunlight: altitude > 0 && geometricFactor > 0 && exposureRatio > 0 && weather.dni > 20, timeLabel: formatTime(date), sunProgress: getSunWindow(date).progress, clearSkyPower }
 }
-
-export function buildDateAtMinutes(base: Date, minutes: number) {
-  const date = new Date(base)
-  date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0)
-  return date
-}
-
-export function chartPath(width: number, height: number) {
-  const points = mockPowerProfile.map((item, index) => {
-    const x = (index / (mockPowerProfile.length - 1)) * width
-    const y = height - (item.value / panelConfig.ratedPower) * height
-    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`
+export function getPowerProfile(date: Date, site: SiteSettings, weatherData?: WeatherData, choice: WeatherChoice = 'auto') {
+  const points = Array.from({ length: 49 }, (_, index) => {
+    const minute = index * 30
+    const snapshot = getSolarSnapshot(buildDateAtMinutes(date, minute), site, weatherData, choice)
+    return { minute, power: snapshot.solarInputPower, source: snapshot.weatherSource }
   })
-  return points.join(' ')
+  const energy = points.slice(1).reduce((sum, p, i) => sum + (p.power + points[i].power) / 2 * 0.5, 0) / 1000
+  return { points, energy, allForecast: points.every(p => p.source === 'forecast') }
 }
+export type PowerProfile = ReturnType<typeof getPowerProfile>
