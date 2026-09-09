@@ -1,0 +1,30 @@
+{
+  "name": "solar-apartment",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "devDependencies": {
+    "@types/three": "latest",
+    "@vitejs/plugin-react-swc": "latest",
+    "typescript": "latest",
+    "vite": "latest"
+  },
+  "dependencies": {
+    "@react-three/drei": "latest",
+    "@react-three/fiber": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "suncalc": "latest",
+    "three": "latest"
+  }
+}
