@@ -186,22 +186,18 @@ function Scene({ snapshot, showRays, preset, site, particles, navigation }: Prop
       {blocks.map(block => <Building key={block.id} block={block} detail />)}
     </group>
     <PanelWindow site={site} snapshot={snapshot} />
-    {!close && <>
-      <mesh position={installation.world}><octahedronGeometry args={[0.8]} /><meshBasicMaterial color="#77e6d2" /></mesh>
-      <Line points={[installation.world, [installation.world[0] + 14, installation.world[1] + 8, installation.world[2]]]} color="#ffcb79" lineWidth={1.2} />
-      <Html center position={[installation.world[0] + 14, installation.world[1] + 8, installation.world[2]]} zIndexRange={[30, 0]}><div className="home-label">我的公寓 <strong>{site.floor}F</strong><span>窗户朝向 {site.azimuth}°</span></div></Html>
-    </>}
+    {!close && <Line points={[installation.world, [installation.world[0], installation.world[1] + 8, installation.world[2]]]} color="#ffcb79" lineWidth={1.2} />}
     {showRays && snapshot.altitude > 0 && <Line points={[installation.world, sunPosition]} color={snapshot.directSunlight ? '#ffce79' : '#94a6b0'} dashed dashSize={close ? 0.2 : 2} gapSize={close ? 0.12 : 1.4} lineWidth={1.4} />}
     <SkySun position={sunPosition} altitude={snapshot.altitude} />
     {!close && <WeatherClouds weather={snapshot.weather} daylight={!night} />}
     <Particles weather={snapshot.weather} kind={kind} enabled={particles} close={close} site={site} />
     </group>
-    <SceneNavigationUpdater refs={navigation} sunPosition={scenePoint(sunPosition)} altitude={snapshot.altitude} />
+    <SceneNavigationUpdater refs={navigation} sunPosition={scenePoint(sunPosition)} homePosition={scenePoint(installation.world)} altitude={snapshot.altitude} />
     <CameraRig preset={preset} site={site} controls={controls} />
     <OrbitControls ref={controls} makeDefault enableRotate={preset !== 'north'} enableDamping dampingFactor={0.09} minDistance={2.5} maxDistance={440} maxPolarAngle={Math.PI / 2.01} />
   </>
 }
 export default function ApartmentScene(props: Props) {
   const navigation = useNavigationRefs()
-  return <div className="apartment-renderer"><Canvas shadows dpr={[1, 1.5]} camera={{ fov: 50, near: 0.1, far: 1200, position: [200, 170, -125] }} gl={{ antialias: true }}><Scene {...props} navigation={navigation} /></Canvas><SceneNavigation refs={navigation} altitude={props.snapshot.altitude} azimuth={props.snapshot.azimuth} /></div>
+  return <div className="apartment-renderer"><Canvas shadows dpr={[1, 1.5]} camera={{ fov: 50, near: 0.1, far: 1200, position: [200, 170, -125] }} gl={{ antialias: true }}><Scene {...props} navigation={navigation} /></Canvas><SceneNavigation refs={navigation} altitude={props.snapshot.altitude} azimuth={props.site.azimuth} floor={props.site.floor} /></div>
 }

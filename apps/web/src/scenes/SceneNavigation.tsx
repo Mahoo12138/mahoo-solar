@@ -25,11 +25,12 @@ export function useNavigationRefs() {
   const needle = useRef<SVGGElement>(null)
   const labels = useRef<Array<SVGTextElement | null>>([])
   const sunLabel = useRef<HTMLDivElement>(null)
-  return useMemo(() => ({ compass, needle, labels, sunLabel }), [])
+  const homeLabel = useRef<HTMLDivElement>(null)
+  return useMemo(() => ({ compass, needle, labels, sunLabel, homeLabel }), [])
 }
 export type NavigationRefs = ReturnType<typeof useNavigationRefs>
-export function SceneNavigationUpdater({ refs, sunPosition, altitude }: { refs: NavigationRefs; sunPosition: Vec3; altitude: number }) {
-  const { compass, needle, labels, sunLabel } = refs
+export function SceneNavigationUpdater({ refs, sunPosition, homePosition, altitude }: { refs: NavigationRefs; sunPosition: Vec3; homePosition: Vec3; altitude: number }) {
+  const { compass, needle, labels, sunLabel, homeLabel } = refs
   useFrame(({ camera, size }) => {
     cameraRight.setFromMatrixColumn(camera.matrixWorld, 0)
     const heading = Math.atan2(cameraRight.z, cameraRight.x)
@@ -39,6 +40,15 @@ export function SceneNavigationUpdater({ refs, sunPosition, altitude }: { refs: 
       const angle = i * Math.PI / 2 - heading
       labels.current[i]?.setAttribute('x', String(44 + Math.sin(angle) * 31))
       labels.current[i]?.setAttribute('y', String(44 - Math.cos(angle) * 31))
+    }
+    if (homeLabel.current) {
+      scratch.set(...homePosition).project(camera)
+      const homeX = (scratch.x + 1) * size.width / 2
+      const homeY = (1 - scratch.y) * size.height / 2
+      const x = Math.max(88, Math.min(size.width - 88, homeX + 72))
+      const y = Math.max(72, Math.min(size.height - 72, homeY - 8))
+      homeLabel.current.style.left = `${x}px`
+      homeLabel.current.style.top = `${y}px`
     }
     const label = sunLabel.current
     if (!label) return
@@ -63,8 +73,8 @@ export function SceneNavigationUpdater({ refs, sunPosition, altitude }: { refs: 
   })
   return null
 }
-export function SceneNavigation({ refs, altitude, azimuth }: { refs: NavigationRefs; altitude: number; azimuth: number }) {
-  const { compass, needle, labels, sunLabel } = refs
+export function SceneNavigation({ refs, altitude, azimuth, floor }: { refs: NavigationRefs; altitude: number; azimuth: number; floor: number }) {
+  const { compass, needle, labels, sunLabel, homeLabel } = refs
   return <div className="scene-navigation">
     <div className="scene-compass" aria-label="场景指南针">
       <svg ref={compass} viewBox="0 0 88 88" role="img" aria-label="随相机旋转的东南西北指南针">
@@ -75,6 +85,7 @@ export function SceneNavigation({ refs, altitude, azimuth }: { refs: NavigationR
         {cardinals.map((label, i) => <text key={label} ref={node => { labels.current[i] = node }} x="44" y="13" textAnchor="middle" dominantBaseline="central" fill={i === 0 ? '#f4c773' : '#b0c8d1'} fontSize="10">{label}</text>)}
       </svg><span>指南针</span>
     </div>
+    <div ref={homeLabel} className="home-label scene-home-label" aria-label="我的公寓位置">我的公寓 <strong>{floor}F</strong><span>窗户朝向 {azimuth}°</span></div>
     <div ref={sunLabel} className="sky-sun-label" aria-label="太阳位置" title={`太阳方位 ${Math.round(azimuth)}°，高度 ${Math.round(altitude)}°；按场景比例示意`} />
   </div>
 }

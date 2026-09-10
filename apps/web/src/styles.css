@@ -297,3 +297,4 @@ button:disabled { cursor: wait; opacity: .45; }
 @media (max-width: 560px) { .scene-compass { bottom: 95px; } }
 .apartment-renderer { width: 100%; height: 100%; position: relative; }
 .scene-navigation { position: absolute; inset: 0; pointer-events: none; z-index: 40; }
+.scene-home-label { position: absolute; left: 0; top: 0; transform: translateY(-50%); }
