@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Camera, CloudSun, Gauge, Layers3, MapPin, Play, RotateCcw, Sun, SunMedium, Waves, Wind, Zap } from 'lucide-react'
-import { panelConfig } from './data/mockData'
+import { Activity, BatteryCharging, Camera, CloudSun, Gauge, HousePlug, Layers3, MapPin, Play, RotateCcw, SolarPanel, Sun, SunMedium, Waves, Wind, Zap } from 'lucide-react'
+import { batteryConfig, mockBatteryTelemetry, panelConfig } from './data/mockData'
 import ApartmentScene, { type SceneCameraPreset } from './scenes/ApartmentScene'
 import { defaultSite, type SiteSettings } from './lib/buildings'
 import { buildDateAtMinutes, getPowerProfile, getSolarSnapshot, getSunWindow, minutesFromDate, type PowerProfile, type SolarSnapshot } from './lib/solar'
@@ -48,6 +48,7 @@ function App() {
       <div className="topbar-actions"><div className="data-source"><span className="status-dot" />{mode === 'live' ? '实时估算' : '时段模拟'}</div><div className="topbar-time"><strong>{snapshot.timeLabel}</strong><label className="date-picker"><span>DATE</span><input aria-label="选择日期" type="date" value={day} onChange={event => { if (event.target.value) { setSelectedDate(event.target.value); setMode('simulation') } }} /></label></div><button className="icon-button" title="恢复实时模式" aria-label="恢复实时模式" onClick={resetLive}><RotateCcw size={15} /></button></div>
     </header>
     <main className="workspace">
+      <BatteryPanel />
       <section className="scene-panel">
         <div className="scene-toolbar"><div><span className="scene-kicker">NEIGHBORHOOD / SOLAR DIGITAL TWIN</span><h1>我的公寓 · 光与天气</h1></div><div className="scene-meta"><span className="scene-live-dot" />{snapshot.directSunlight ? '直射阳光' : snapshot.altitude <= 0 ? '夜间' : '散射光'}<span className="scene-meta-divider" />{weatherNames[weatherKind(snapshot.weather)]}</div></div>
         <div className="scene-canvas three-scene-canvas" aria-label="公寓楼栋三维模型">
@@ -78,6 +79,63 @@ function App() {
         <input aria-label="模拟太阳时间" type="range" min="0" max="1440" value={minutesFromDate(activeDate)} onChange={event => { selectMode('simulation'); setSimMinutes(Math.min(1439, Number(event.target.value))) }} style={{ '--timeline-progress': `${minutesFromDate(activeDate) / 1440 * 100}%` } as React.CSSProperties} />
         <div className="timeline-ticks">{Array.from({ length: 25 }, (_, i) => <i key={i} />)}</div><div className="chart-axis"><span>00:00</span><span>12:00</span><span>24:00</span></div></div></div><div className="timeline-readout"><span className="readout-label">SUN POSITION</span><strong>{snapshot.timeLabel}</strong><span>{degrees(snapshot.altitude)} ALT / {degrees(snapshot.azimuth)} AZ</span></div></footer>
   </div>
+}
+function BatteryPanel() {
+  const charge = mockBatteryTelemetry.chargePercent
+  const storedEnergy = Math.round(batteryConfig.capacityWh * charge / 100)
+  const netPower = mockBatteryTelemetry.chargingPower - mockBatteryTelemetry.outputPower
+  const minutesToFull = Math.round((batteryConfig.capacityWh - storedEnergy) / netPower * 60)
+  const particles = Array.from({ length: 6 }, (_, index) => <i key={index} style={{ '--particle-index': index } as React.CSSProperties} />)
+
+  return <aside className="side-panel battery-panel" aria-label="酷态科电能仓 600 状态">
+    <div className="panel-header"><div className="panel-icon battery-panel-icon"><BatteryCharging size={16} /></div><div><div className="panel-eyebrow">PORTABLE ENERGY STORAGE</div><h2>电能仓状态</h2></div><span className="mock-badge">MOCK</span></div>
+    <div className="battery-state-line"><span><i />太阳能充电中</span><b>+{netPower} W</b></div>
+
+    <div className="energy-flow" aria-label={`当前电量 ${charge}%，充电功率 ${mockBatteryTelemetry.chargingPower} 瓦，用电功率 ${mockBatteryTelemetry.outputPower} 瓦`}>
+      <div className="flow-channel flow-channel-input">
+        <div className="flow-source"><SolarPanel size={15} /><span>PV IN</span><strong>{mockBatteryTelemetry.chargingPower}<small>W</small></strong></div>
+        <div className="flow-line"><span>{particles}</span></div>
+      </div>
+
+      <div className="power-station-visual" aria-hidden="true">
+        <div className="station-handle"><span /></div>
+        <div className="station-body">
+          <div className="station-side-vent">{Array.from({ length: 8 }, (_, index) => <i key={index} />)}</div>
+          <div className="station-face">
+            <div className="station-screen">
+              <div className="screen-top"><span>CUKTECH</span><i /></div>
+              <div className="screen-charge"><strong>{charge}</strong><span>%</span></div>
+              <div className="screen-meta"><span>IN {mockBatteryTelemetry.chargingPower}W</span><span>OUT {mockBatteryTelemetry.outputPower}W</span></div>
+              <div className="screen-level"><span style={{ width: `${charge}%` }} /></div>
+            </div>
+            <div className="station-controls"><span className="station-lamp" /><span className="station-port station-port-round" /><span className="station-port" /><span className="station-port" /></div>
+            <div className="station-outlets"><i /><i /></div>
+          </div>
+        </div>
+        <div className="station-feet"><i /><i /></div>
+      </div>
+
+      <div className="flow-channel flow-channel-output">
+        <div className="flow-line"><span>{particles}</span></div>
+        <div className="flow-source"><HousePlug size={15} /><span>HOME LOAD</span><strong>{mockBatteryTelemetry.outputPower}<small>W</small></strong></div>
+      </div>
+    </div>
+
+    <div className="battery-capacity" role="status">
+      <div className="capacity-heading"><span>可用电量</span><strong>{charge}%</strong></div>
+      <div className="capacity-track"><span style={{ width: `${charge}%` }} /><i style={{ left: `${charge}%` }} /></div>
+      <div className="capacity-detail"><span>{storedEnergy} Wh 可用</span><span>额定 {batteryConfig.capacityWh} Wh</span></div>
+    </div>
+
+    <div className="battery-metrics">
+      <div><span>充电功率</span><strong className="charge-value">{mockBatteryTelemetry.chargingPower}<small>W</small></strong><em>太阳能上限 {batteryConfig.solarInputMax} W</em></div>
+      <div><span>用电功率</span><strong>{mockBatteryTelemetry.outputPower}<small>W</small></strong><em>交流额定 {batteryConfig.acOutputMax} W</em></div>
+    </div>
+
+    <div className="battery-forecast"><span>按当前净输入</span><strong>约 {Math.floor(minutesToFull / 60)}h {minutesToFull % 60}m 充满</strong></div>
+    <div className="battery-specs"><span>{batteryConfig.chemistry}</span><span>{batteryConfig.modelCode}</span><span>{mockBatteryTelemetry.temperature.toFixed(1)}°C</span></div>
+    <p className="battery-note">遥测数据为界面模拟 · 设备额定参数来自公开规格</p>
+  </aside>
 }
 function WeatherPanel({ snapshot, state, choice, setChoice, onRefresh }: { snapshot: SolarSnapshot; state: WeatherState; choice: WeatherChoice; setChoice: (choice: WeatherChoice) => void; onRefresh: () => void }) {
   const weather = snapshot.weather

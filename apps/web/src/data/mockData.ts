@@ -31,6 +31,26 @@ export const deviceConfig = {
   dailyLoad: 157.28,
 } as const
 
+export const batteryConfig = {
+  model: '酷态科电能仓 600',
+  modelCode: 'PS600N',
+  capacityWh: 512,
+  chemistry: '磷酸铁锂',
+  acInputMax: 600,
+  solarInputMax: 200,
+  acOutputMax: 600,
+  boostedOutputMax: 1000,
+  cycleLife: 4000,
+} as const
+
+export const mockBatteryTelemetry = {
+  chargePercent: 76,
+  chargingPower: 186,
+  outputPower: 62,
+  temperature: 28.4,
+  updatedAt: 'JUST NOW',
+} as const
+
 export const mockPowerProfile = [
   { time: '06:00', value: 0 },
   { time: '07:00', value: 12 },

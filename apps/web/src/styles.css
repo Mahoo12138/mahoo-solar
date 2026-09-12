@@ -298,3 +298,108 @@ button:disabled { cursor: wait; opacity: .45; }
 .apartment-renderer { width: 100%; height: 100%; position: relative; }
 .scene-navigation { position: absolute; inset: 0; pointer-events: none; z-index: 40; }
 .scene-home-label { position: absolute; left: 0; top: 0; transform: translateY(-50%); }
+
+/* CUKTECH 600 mock telemetry */
+.workspace { grid-template-columns: 260px minmax(0, 1fr) 320px; }
+.battery-panel { position: relative; padding: 16px 16px 13px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #38545d transparent; background: radial-gradient(circle at 50% 28%, rgba(102,216,208,.08), transparent 32%), linear-gradient(160deg, rgba(15,34,45,.96), rgba(7,18,27,.94)); }
+.battery-panel .panel-header { margin-bottom: 12px; }
+.battery-panel-icon { color: var(--amber); border-color: rgba(242,189,85,.3); background: rgba(242,189,85,.08); }
+.mock-badge { margin-left: auto; padding: 4px 6px; color: var(--amber); border: 1px solid rgba(242,189,85,.3); font: 8px 'DM Mono', monospace; letter-spacing: .12em; }
+.battery-state-line { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; color: #b8cdce; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); font-size: 10px; }
+.battery-state-line span { display: flex; align-items: center; gap: 7px; }
+.battery-state-line span i { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px rgba(102,216,208,.5); animation: stationPulse 1.8s ease-in-out infinite; }
+.battery-state-line b { color: var(--cyan); font: 500 11px 'DM Mono', monospace; }
+
+.energy-flow { display: grid; justify-items: center; padding: 12px 0 10px; }
+.flow-channel { display: grid; justify-items: center; width: 100%; }
+.flow-source { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; width: 100%; min-height: 31px; color: var(--muted); }
+.flow-source svg { color: var(--amber); }
+.flow-source span { font: 9px 'DM Mono', monospace; letter-spacing: .09em; }
+.flow-source strong { color: #dfeceb; font: 500 16px 'DM Mono', monospace; letter-spacing: -.04em; }
+.flow-source strong small { margin-left: 3px; color: var(--faint); font-size: 9px; }
+.flow-channel-output .flow-source svg { color: var(--cyan); }
+.flow-line { position: relative; width: 2px; height: 25px; overflow: hidden; background: rgba(115,157,168,.18); }
+.flow-line::before { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent, var(--amber), transparent); opacity: .4; }
+.flow-channel-output .flow-line::before { background: linear-gradient(transparent, var(--cyan), transparent); }
+.flow-line > span { position: absolute; inset: 0; display: block; }
+.flow-line i { --particle-size: 4px; position: absolute; top: calc(var(--particle-size) * -1); left: 50%; width: var(--particle-size); height: var(--particle-size); border-radius: 50%; background: #ffe6a8; box-shadow: 0 0 7px rgba(242,189,85,.7); transform: translateX(-50%); animation: energyTravel 1.45s linear infinite; animation-delay: calc(var(--particle-index) * -.24s); }
+.flow-channel-output .flow-line i { background: #9af2e9; box-shadow: 0 0 7px rgba(102,216,208,.75); animation-duration: 1.9s; animation-delay: calc(var(--particle-index) * -.31s); }
+
+.power-station-visual { position: relative; width: 194px; height: 182px; filter: drop-shadow(0 16px 19px rgba(0,0,0,.27)); }
+.station-handle { position: absolute; z-index: 1; top: 0; left: 50%; width: 91px; height: 34px; border: 8px solid #6f7c82; border-bottom: 0; border-radius: 14px 14px 0 0; transform: translateX(-50%); background: #111d24; }
+.station-handle span { position: absolute; top: -4px; left: 9px; right: 9px; height: 4px; border-radius: 4px; background: #9ba4a6; opacity: .48; }
+.station-body { position: absolute; inset: 24px 0 10px; border-radius: 13px 13px 10px 10px; background: linear-gradient(100deg, #737d80 0 10%, #c6cbca 10% 88%, #7d878a 88%); box-shadow: inset 0 1px rgba(255,255,255,.55), inset 0 -8px 12px rgba(32,42,47,.22); overflow: hidden; }
+.station-side-vent { position: absolute; top: 43px; left: 7px; display: grid; grid-template-columns: repeat(2, 2px); gap: 4px 3px; }
+.station-side-vent i { width: 2px; height: 18px; border-radius: 2px; background: #3f4c50; opacity: .74; }
+.station-face { position: absolute; inset: 12px 20px 13px 22px; padding: 9px; border-radius: 7px; background: linear-gradient(145deg, #182329, #0e171c); box-shadow: inset 0 1px rgba(255,255,255,.08); }
+.station-screen { position: relative; height: 67px; padding: 7px 9px; overflow: hidden; border: 1px solid rgba(126,222,207,.21); border-radius: 3px; color: #cafaf0; background: radial-gradient(circle at 50% 50%, rgba(77,197,181,.14), transparent 60%), #071214; font-family: 'DM Mono', monospace; box-shadow: inset 0 0 18px rgba(28,108,101,.15); }
+.screen-top { display: flex; align-items: center; justify-content: space-between; color: #628b87; font-size: 5px; letter-spacing: .12em; }
+.screen-top i { width: 4px; height: 4px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); animation: stationPulse 1.8s ease-in-out infinite; }
+.screen-charge { display: flex; justify-content: center; align-items: baseline; margin-top: 2px; }
+.screen-charge strong { font-size: 25px; line-height: 1; font-weight: 500; letter-spacing: -.08em; }
+.screen-charge span { margin-left: 2px; font-size: 8px; }
+.screen-meta { display: flex; justify-content: space-between; margin-top: 2px; color: #719d99; font-size: 5px; }
+.screen-level { position: absolute; right: 9px; bottom: 5px; left: 9px; height: 2px; background: #213735; }
+.screen-level span { display: block; height: 100%; background: var(--cyan); box-shadow: 0 0 6px rgba(102,216,208,.7); }
+.station-controls { display: grid; grid-template-columns: 18px 18px 1fr 1fr; align-items: center; gap: 7px; margin-top: 9px; }
+.station-lamp { width: 14px; height: 14px; border-radius: 50%; background: #d8e2df; box-shadow: inset 0 0 0 3px #5d6869; }
+.station-port { height: 8px; border-radius: 2px; background: #05090b; box-shadow: inset 0 0 0 1px #3a4446; }
+.station-port-round { width: 15px; height: 15px; border-radius: 50%; }
+.station-outlets { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 8px; }
+.station-outlets i { position: relative; height: 32px; border-radius: 3px; background: #070b0d; box-shadow: inset 0 0 0 1px #303b3e; }
+.station-outlets i::before, .station-outlets i::after { content: ''; position: absolute; top: 8px; width: 3px; height: 8px; border-radius: 2px; background: #465155; }
+.station-outlets i::before { left: 18px; transform: rotate(18deg); }
+.station-outlets i::after { right: 18px; transform: rotate(-18deg); }
+.station-feet { position: absolute; right: 19px; bottom: 4px; left: 19px; display: flex; justify-content: space-between; }
+.station-feet i { width: 25px; height: 8px; border-radius: 0 0 4px 4px; background: #354045; }
+
+.battery-capacity { padding: 13px 0; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+.capacity-heading, .capacity-detail { display: flex; align-items: center; justify-content: space-between; }
+.capacity-heading { color: #b9cccf; font-size: 11px; }
+.capacity-heading strong { color: var(--cyan); font: 500 21px 'DM Mono', monospace; letter-spacing: -.05em; }
+.capacity-track { position: relative; height: 7px; margin: 8px 0; background: rgba(109,152,162,.17); overflow: visible; }
+.capacity-track span { display: block; height: 100%; background: linear-gradient(90deg, #4caeaa, var(--cyan)); box-shadow: 0 0 10px rgba(102,216,208,.18); }
+.capacity-track i { position: absolute; top: 50%; width: 2px; height: 13px; background: #c6fff6; box-shadow: 0 0 8px rgba(102,216,208,.7); transform: translate(-1px,-50%); }
+.capacity-detail { color: var(--faint); font: 8px 'DM Mono', monospace; }
+.battery-metrics { display: grid; grid-template-columns: 1fr 1fr; padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
+.battery-metrics > div { min-width: 0; }
+.battery-metrics > div + div { padding-left: 13px; border-left: 1px solid var(--line-soft); }
+.battery-metrics span { display: block; color: var(--muted); font-size: 10px; }
+.battery-metrics strong { display: block; margin: 6px 0 4px; color: #e2eded; font: 500 22px 'DM Mono', monospace; letter-spacing: -.06em; }
+.battery-metrics strong.charge-value { color: var(--amber); }
+.battery-metrics strong small { margin-left: 3px; color: var(--faint); font-size: 9px; letter-spacing: 0; }
+.battery-metrics em { display: block; color: var(--faint); font-size: 8px; font-style: normal; line-height: 1.45; }
+.battery-forecast { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 0 9px; color: var(--faint); font-size: 9px; }
+.battery-forecast strong { color: #cfe0df; font: 500 10px 'DM Mono', monospace; }
+.battery-specs { display: flex; justify-content: space-between; gap: 5px; color: #91a9ad; font: 8px 'DM Mono', monospace; }
+.battery-specs span { padding: 4px 5px; border: 1px solid var(--line-soft); }
+.battery-note { margin: 9px 0 0; color: #647f89; font-size: 8px; line-height: 1.5; text-align: center; }
+
+@keyframes energyTravel { from { transform: translate(-50%, -4px); opacity: 0; } 18% { opacity: 1; } 82% { opacity: 1; } to { transform: translate(-50%, 29px); opacity: 0; } }
+@keyframes stationPulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+@media (max-width: 1320px) {
+  .workspace { grid-template-columns: 232px minmax(0, 1fr) 286px; gap: 10px; padding-left: 10px; padding-right: 10px; }
+  .battery-panel { padding-left: 12px; padding-right: 12px; }
+  .power-station-visual { transform: scale(.92); margin: -7px 0; }
+}
+@media (max-width: 1100px) {
+  .workspace { grid-template-columns: 218px minmax(0, 1fr) 270px; }
+  .battery-panel { padding-left: 10px; padding-right: 10px; }
+  .power-station-visual { transform: scale(.86); margin: -13px 0; }
+  .battery-specs span:nth-child(2) { display: none; }
+}
+@media (max-width: 900px) {
+  .battery-panel { order: 1; overflow: visible; }
+  .telemetry-panel { order: 2; }
+  .power-station-visual { transform: none; margin: 0; }
+}
+@media (max-width: 560px) {
+  .battery-panel { padding: 15px 14px; }
+  .power-station-visual { transform: scale(.94); margin: -6px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-line i { display: none; }
+  .flow-line::before { opacity: .72; }
+}
