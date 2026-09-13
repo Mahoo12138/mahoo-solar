@@ -47,7 +47,30 @@ pnpm test
 
 每次功率计算都从面板发射 96 条射线，检测楼栋主体与窗框遮挡。装饰屋顶设备、树木、窗外其他楼栋、天空视域遮挡、组件串联失配、积雪覆盖与室内温升未进行精细建模。功率不是设备实测。
 
-左侧电能仓面板按酷态科电能仓 600（PS600N）公开规格展示：512 Wh 磷酸铁锂电池、太阳能/DC 输入最高 200 W、AC 输入最高 600 W、AC 额定输出 600 W（升维驱动 1000 W）。当前电量、充电功率、用电功率和温度使用 `mockData.ts` 中的明确模拟值，界面标注为 `MOCK`，便于后续替换为网关遥测。
+左侧电能仓面板按酷态科电能仓 600（PS600N）公开规格展示：512 Wh 磷酸铁锂电池、太阳能/DC 输入最高 200 W、AC 输入最高 600 W、AC 额定输出 600 W（升维驱动 1000 W）。面板已经接入 Companion 的只读 Mesh 遥测；电量和实时充放电功率三项齐全时显示 `LIVE`，否则显示 `WAITING` 并保留模拟值，不会把未知的 SIID/PIID 猜成电量或功率。配对的米家蓝牙温湿度计 T2（`miaomiaoce.sensor_ht.t2`）会作为电能仓的环境指标显示温度与相对湿度。
+
+## Mesh 只读遥测
+
+网关连接代码位于 `apps/web/src/gateway/`，不增加第三方依赖，使用浏览器原生 `fetch` 和 `WebSocket`，兼容 Android 8 WebView。流程为：
+
+1. 在小爱控制中心「设置 → 只读遥测令牌」创建 `mesh:read` Token。令牌只显示一次，服务端只保存 SHA-256 摘要。
+2. 将 [`.env.example`](./.env.example) 复制为 `.env.local`，填写 `VITE_LX04_GATEWAY_URL` 和 `VITE_LX04_MESH_READ_TOKEN`。地址和 Token 由 Vite 在启动/构建时注入，页面不再提供编辑框，也不会写入 `localStorage`。
+3. 重启开发服务器或重新构建使环境变量生效。客户端先读取 `/api/v1/telemetry/snapshot`，再通过 `/api/auth/ws-ticket` 换取一次性 ticket，最后连接 `/ws/telemetry` 并声明 `lx04-json` 子协议。
+4. 收到 `snapshot`、`property.changed`、`gateway.state` 三种版本化帧后，在本地合并设备状态；序号跳跃会触发一次快照恢复，网关离线会停止重连并显示离线状态。
+
+Companion 在原始属性旁提供 `semantic` 投影，mahoo-solar 当前接受 `battery.percent`、`power.input_w`、`power.output_w`、`power.input_remaining_minutes`、`power.output_remaining_minutes`、`temperature.celsius` 和 `humidity.percent`。温湿度计同时兼容 MIoT 标准属性 `2.1`/`2.2` 与网关扩展属性 `2.1001`/`2.1002`，分别映射为摄氏温度和相对湿度。已实测确认的 CUKTECH 编码为：`2/3 & 0xFF` 是电量百分比，`2/2` 的 bits 16–27 是充电功率，`2/1` 的 bits 16–27 是放电功率；低 16 位作为设备剩余分钟数，`5999` 在界面显示为“超过 99h”。服务端仍会透传所有原始值、schema 来源和置信度，方便审计和后续修正。
+
+客户端会规范化 URL-safe Base64 Token 的尾部填充，因此从控制台复制时即使遗漏最后的 `=` 也可连接 0.3.6；0.3.7 起 Companion 本身也接受有/无填充的等价表示。Vite 环境变量会被编译进前端 bundle，Token 不是部署后的秘密；请只在可信局域网提供该页面，并将 `.env.local` 加入本地忽略列表，勿提交到仓库。
+
+刷入对应 Companion 后的验证方式：
+
+```powershell
+$env:LX04_MESH_READ_TOKEN = '<控制中心仅显示一次的 mesh:read Token>'
+Set-Location 'D:\Resourses\LX04\PATECH_MOD_V5_解包\LX04_VoiceHook'
+.\scripts\verify-mahoo-telemetry.ps1 -DeviceIp '10.0.0.235' -RequireCuktechValues
+```
+
+如果刚重启后快照还没有 CUKTECH 字段，先在米家打开一次电能仓页面或等待下一次电量/功率变化，再重新运行。前端环境变量需要在启动开发服务器或构建前准备好，修改后重启 Vite 才会生效。
 
 全天曲线以同一个几何与天气模型每 30 分钟采样，并以梯形积分得到 kWh。缺失时段采用晴空回退并在曲线下提示。所有时间均显式采用 Asia/Shanghai，不受浏览器时区影响。
 

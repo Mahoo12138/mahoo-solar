@@ -25,7 +25,7 @@ export const panelConfig = {
 
 export const deviceConfig = {
   powerStation: '酷态科 600',
-  gateway: 'LX04 Mesh Gateway',
+  gateway: '蓝牙 Mesh 网关',
   gatewayState: 'MOCK DATA',
   load: 'Mac mini M4 + 2× SSD',
   dailyLoad: 157.28,
@@ -48,6 +48,7 @@ export const mockBatteryTelemetry = {
   chargingPower: 186,
   outputPower: 62,
   temperature: 28.4,
+  humidity: 58,
   updatedAt: 'JUST NOW',
 } as const
 

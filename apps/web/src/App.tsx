@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, BatteryCharging, Camera, CloudSun, Gauge, HousePlug, Layers3, MapPin, Play, RotateCcw, SolarPanel, Sun, SunMedium, Waves, Wind, Zap } from 'lucide-react'
+import { Activity, BatteryCharging, Camera, CloudSun, Droplets, Gauge, HousePlug, Layers3, MapPin, Play, RotateCcw, SolarPanel, Sun, SunMedium, Thermometer, Waves, Wind, Zap } from 'lucide-react'
 import { batteryConfig, mockBatteryTelemetry, panelConfig } from './data/mockData'
 import ApartmentScene, { type SceneCameraPreset } from './scenes/ApartmentScene'
 import { defaultSite, type SiteSettings } from './lib/buildings'
 import { buildDateAtMinutes, getPowerProfile, getSolarSnapshot, getSunWindow, minutesFromDate, type PowerProfile, type SolarSnapshot } from './lib/solar'
 import { shanghaiDate, isWeatherDateEnabled, useWeather, weatherKind, weatherNames, type WeatherChoice, type WeatherState } from './lib/weather'
+import { useBatteryTelemetry } from './gateway/useBatteryTelemetry'
+import type { BatteryTelemetry, GatewayConnectionStatus } from './gateway/contracts'
 
 type Mode = 'live' | 'simulation'
 const cn = (...classes: Array<string | false | undefined>) => classes.filter(Boolean).join(' ')
@@ -23,6 +25,7 @@ function App() {
   const [site, setSite] = useState<SiteSettings>(defaultSite)
   const [weatherChoice, setWeatherChoice] = useState<WeatherChoice>('auto')
   const [refresh, setRefresh] = useState(0)
+  const gateway = useBatteryTelemetry()
   useEffect(() => {
     const clock = window.setInterval(() => setLiveNow(new Date()), 10_000)
     const weatherTimer = window.setInterval(() => setRefresh(value => value + 1), 600_000)
@@ -48,7 +51,7 @@ function App() {
       <div className="topbar-actions"><div className="data-source"><span className="status-dot" />{mode === 'live' ? '实时估算' : '时段模拟'}</div><div className="topbar-time"><strong>{snapshot.timeLabel}</strong><label className="date-picker"><span>DATE</span><input aria-label="选择日期" type="date" value={day} onChange={event => { if (event.target.value) { setSelectedDate(event.target.value); setMode('simulation') } }} /></label></div><button className="icon-button" title="恢复实时模式" aria-label="恢复实时模式" onClick={resetLive}><RotateCcw size={15} /></button></div>
     </header>
     <main className="workspace">
-      <BatteryPanel />
+      <BatteryPanel telemetry={gateway.telemetry} status={gateway.status} />
       <section className="scene-panel">
         <div className="scene-toolbar"><div><span className="scene-kicker">NEIGHBORHOOD / SOLAR DIGITAL TWIN</span><h1>我的公寓 · 光与天气</h1></div><div className="scene-meta"><span className="scene-live-dot" />{snapshot.directSunlight ? '直射阳光' : snapshot.altitude <= 0 ? '夜间' : '散射光'}<span className="scene-meta-divider" />{weatherNames[weatherKind(snapshot.weather)]}</div></div>
         <div className="scene-canvas three-scene-canvas" aria-label="公寓楼栋三维模型">
@@ -80,20 +83,33 @@ function App() {
         <div className="timeline-ticks">{Array.from({ length: 25 }, (_, i) => <i key={i} />)}</div><div className="chart-axis"><span>00:00</span><span>12:00</span><span>24:00</span></div></div></div><div className="timeline-readout"><span className="readout-label">SUN POSITION</span><strong>{snapshot.timeLabel}</strong><span>{degrees(snapshot.altitude)} ALT / {degrees(snapshot.azimuth)} AZ</span></div></footer>
   </div>
 }
-function BatteryPanel() {
-  const charge = mockBatteryTelemetry.chargePercent
+function BatteryPanel({ telemetry, status }: { telemetry?: BatteryTelemetry; status: GatewayConnectionStatus }) {
+  const charge = telemetry?.chargePercent ?? mockBatteryTelemetry.chargePercent
+  const chargingPower = telemetry?.chargingPower ?? mockBatteryTelemetry.chargingPower
+  const outputPower = telemetry?.outputPower ?? mockBatteryTelemetry.outputPower
+  const temperature = telemetry?.temperature ?? mockBatteryTelemetry.temperature
+  const humidity = telemetry?.humidity ?? mockBatteryTelemetry.humidity
   const storedEnergy = Math.round(batteryConfig.capacityWh * charge / 100)
-  const netPower = mockBatteryTelemetry.chargingPower - mockBatteryTelemetry.outputPower
-  const minutesToFull = Math.round((batteryConfig.capacityWh - storedEnergy) / netPower * 60)
+  const netPower = chargingPower - outputPower
+  const minutesToFull = netPower > 0 ? Math.round((batteryConfig.capacityWh - storedEnergy) / netPower * 60) : 0
+  const hasLiveValues = telemetry?.chargePercent !== undefined && telemetry.chargingPower !== undefined && telemetry.outputPower !== undefined
+  const reportedRemaining = netPower >= 0 ? telemetry?.chargingRemainingMinutes : telemetry?.outputRemainingMinutes
+  const forecastLabel = netPower >= 0 ? '设备预计充满' : '设备预计可用'
+  const forecastValue = reportedRemaining !== undefined
+    ? reportedRemaining >= 5999 ? '超过 99h' : `约 ${Math.floor(reportedRemaining / 60)}h ${reportedRemaining % 60}m`
+    : netPower > 0 ? `约 ${Math.floor(minutesToFull / 60)}h ${minutesToFull % 60}m` : '等待设备估算'
+  const sourceLabel = hasLiveValues ? 'LIVE' : status === 'connecting' ? 'CONNECTING' : status === 'gateway-offline' ? 'OFFLINE' : 'WAITING'
+  const statusLabel = status === 'disabled' ? '等待蓝牙网关配置' : status === 'unauthorized' ? '网关 Token 无效' : status === 'error' ? '网关连接错误' : status === 'gateway-offline' ? '蓝牙网关离线' : hasLiveValues ? '网关遥测已接入' : '已收到设备字段，等待语义映射'
+  const stateLabel = hasLiveValues ? (netPower >= 0 ? '太阳能充电中' : '电能仓放电中') : statusLabel
   const particles = Array.from({ length: 6 }, (_, index) => <i key={index} style={{ '--particle-index': index } as React.CSSProperties} />)
 
   return <aside className="side-panel battery-panel" aria-label="酷态科电能仓 600 状态">
-    <div className="panel-header"><div className="panel-icon battery-panel-icon"><BatteryCharging size={16} /></div><div><div className="panel-eyebrow">PORTABLE ENERGY STORAGE</div><h2>电能仓状态</h2></div><span className="mock-badge">MOCK</span></div>
-    <div className="battery-state-line"><span><i />太阳能充电中</span><b>+{netPower} W</b></div>
+    <div className="panel-header"><div className="panel-icon battery-panel-icon"><BatteryCharging size={16} /></div><div><div className="panel-eyebrow">PORTABLE ENERGY STORAGE</div><h2>电能仓状态</h2></div><span className={`mock-badge telemetry-badge telemetry-${sourceLabel.toLowerCase()}`}>{sourceLabel}</span></div>
+    <div className="battery-state-line"><span><i />{stateLabel}</span><b>{hasLiveValues ? `${netPower >= 0 ? '+' : ''}${netPower} W` : '—'}</b></div>
 
-    <div className="energy-flow" aria-label={`当前电量 ${charge}%，充电功率 ${mockBatteryTelemetry.chargingPower} 瓦，用电功率 ${mockBatteryTelemetry.outputPower} 瓦`}>
+    <div className="energy-flow" aria-label={`当前电量 ${charge}%，充电功率 ${chargingPower} 瓦，用电功率 ${outputPower} 瓦`}>
       <div className="flow-channel flow-channel-input">
-        <div className="flow-source"><SolarPanel size={15} /><span>PV IN</span><strong>{mockBatteryTelemetry.chargingPower}<small>W</small></strong></div>
+        <div className="flow-source"><SolarPanel size={15} /><span>PV IN</span><strong>{chargingPower}<small>W</small></strong></div>
         <div className="flow-line"><span>{particles}</span></div>
       </div>
 
@@ -105,7 +121,7 @@ function BatteryPanel() {
             <div className="station-screen">
               <div className="screen-top"><span>CUKTECH</span><i /></div>
               <div className="screen-charge"><strong>{charge}</strong><span>%</span></div>
-              <div className="screen-meta"><span>IN {mockBatteryTelemetry.chargingPower}W</span><span>OUT {mockBatteryTelemetry.outputPower}W</span></div>
+              <div className="screen-meta"><span>IN {chargingPower}W</span><span>OUT {outputPower}W</span></div>
               <div className="screen-level"><span style={{ width: `${charge}%` }} /></div>
             </div>
             <div className="station-controls"><span className="station-lamp" /><span className="station-port station-port-round" /><span className="station-port" /><span className="station-port" /></div>
@@ -117,7 +133,7 @@ function BatteryPanel() {
 
       <div className="flow-channel flow-channel-output">
         <div className="flow-line"><span>{particles}</span></div>
-        <div className="flow-source"><HousePlug size={15} /><span>HOME LOAD</span><strong>{mockBatteryTelemetry.outputPower}<small>W</small></strong></div>
+        <div className="flow-source"><HousePlug size={15} /><span>HOME LOAD</span><strong>{outputPower}<small>W</small></strong></div>
       </div>
     </div>
 
@@ -128,13 +144,17 @@ function BatteryPanel() {
     </div>
 
     <div className="battery-metrics">
-      <div><span>充电功率</span><strong className="charge-value">{mockBatteryTelemetry.chargingPower}<small>W</small></strong><em>太阳能上限 {batteryConfig.solarInputMax} W</em></div>
-      <div><span>用电功率</span><strong>{mockBatteryTelemetry.outputPower}<small>W</small></strong><em>交流额定 {batteryConfig.acOutputMax} W</em></div>
+      <div><span>充电功率</span><strong className="charge-value">{chargingPower}<small>W</small></strong><em>太阳能上限 {batteryConfig.solarInputMax} W</em></div>
+      <div><span>用电功率</span><strong>{outputPower}<small>W</small></strong><em>交流额定 {batteryConfig.acOutputMax} W</em></div>
     </div>
 
-    <div className="battery-forecast"><span>按当前净输入</span><strong>约 {Math.floor(minutesToFull / 60)}h {minutesToFull % 60}m 充满</strong></div>
-    <div className="battery-specs"><span>{batteryConfig.chemistry}</span><span>{batteryConfig.modelCode}</span><span>{mockBatteryTelemetry.temperature.toFixed(1)}°C</span></div>
-    <p className="battery-note">遥测数据为界面模拟 · 设备额定参数来自公开规格</p>
+    <div className="battery-forecast"><span>{hasLiveValues ? forecastLabel : '按当前净输入'}</span><strong>{hasLiveValues ? forecastValue : `约 ${Math.floor(minutesToFull / 60)}h ${minutesToFull % 60}m 充满`}</strong></div>
+    <div className="battery-specs"><span>{batteryConfig.chemistry}</span><span>{batteryConfig.modelCode}</span><span>蓝牙环境</span></div>
+    <div className="ambient-metrics" aria-label="电能仓环境指标">
+      <div className="ambient-metric"><div className="ambient-metric-label"><Thermometer size={13} />环境温度</div><strong>{temperature.toFixed(1)}<small>°C</small></strong><span>{telemetry?.temperature !== undefined ? '蓝牙温湿度计' : '模拟值'}</span></div>
+      <div className="ambient-metric"><div className="ambient-metric-label"><Droplets size={13} />环境湿度</div><strong>{humidity.toFixed(0)}<small>%</small></strong><span>{telemetry?.humidity !== undefined ? '蓝牙温湿度计' : '模拟值'}</span></div>
+    </div>
+    <p className="battery-note">{hasLiveValues ? `蓝牙网关 · ${statusLabel}` : `${statusLabel} · 当前显示模拟值`}</p>
   </aside>
 }
 function WeatherPanel({ snapshot, state, choice, setChoice, onRefresh }: { snapshot: SolarSnapshot; state: WeatherState; choice: WeatherChoice; setChoice: (choice: WeatherChoice) => void; onRefresh: () => void }) {
